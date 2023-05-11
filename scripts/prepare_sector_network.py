@@ -2141,17 +2141,17 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "prepare_sector_network",
             simpl="",
-            clusters="10",
+            clusters="30",
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
             sopts="144H",
             discountrate="0.071",
-            demand="DF",
+            demand="NZ",
         )
 
     # Load population layout
-    pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
+    pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0, keep_default_na=False, na_values="")
 
     # Load all sector wildcards
     options = snakemake.config["sector"]

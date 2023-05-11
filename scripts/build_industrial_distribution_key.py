@@ -91,8 +91,8 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "build_industrial_distribution_key",
             simpl="",
-            clusters=10,
-            demand="DF",
+            clusters=30,
+            demand="NZ",
             planning_horizons=2030,
         )
         sets_path_to_root("pypsa-earth-sec")
@@ -102,12 +102,12 @@ if __name__ == "__main__":
 
     regions = gpd.read_file(snakemake.input.regions_onshore)
 
-    if regions["name"][0][
-        :3
-    ].isalpha():  # TODO clean later by changing all codes to 2 letters
-        regions["name"] = regions["name"].apply(
-            lambda name: three_2_two_digits_country(name[:3]) + name[3:]
-        )
+    # if regions["name"][0][
+    #     :3
+    # ].isalpha():  # TODO clean later by changing all codes to 2 letters
+    #     regions["name"] = regions["name"].apply(
+    #         lambda name: three_2_two_digits_country(name[:3]) + name[3:]
+    #     )
 
     geo_locs = pd.read_csv(
         snakemake.input.industrial_database,
