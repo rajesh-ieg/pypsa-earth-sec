@@ -379,7 +379,7 @@ def plot_transmission_topology(network):
     n.links.bus0 = n.links.bus0.str.replace(" H2", "")
     n.links.bus1 = n.links.bus1.str.replace(" H2", "")
 
-    n.lines.append(DC_lines[["bus0", "bus1"]])
+    n.lines._append(DC_lines[["bus0", "bus1"]])
 
     n.madd("Line", names=DC_lines.index, bus0=DC_lines.bus0, bus1=DC_lines.bus1)
 
@@ -674,7 +674,7 @@ def plot_map(
         ax=ax,
         # boundaries=(-20, 0, 25, 40),
         geomap="10m",
-        color_geomap={"ocean": "lightblue", "land": "oldlace"},
+        color_geomap={"ocean": "lightblue", "land": "white"},
     )
 
     handles = make_legend_circles_for(
@@ -684,8 +684,8 @@ def plot_map(
     l2 = ax.legend(
         handles,
         labels,
-        loc="upper left",
-        bbox_to_anchor=(0.33, 1.005),
+        loc="center right",
+        bbox_to_anchor=(1, 0.5),
         labelspacing=1.0,
         framealpha=1.0,
         title="System cost",
@@ -704,8 +704,8 @@ def plot_map(
     l1_1 = ax.legend(
         handles,
         labels,
-        loc="upper left",
-        bbox_to_anchor=(0.001, 1.002),
+        loc="lower right",
+        bbox_to_anchor=(1, 0),
         framealpha=1,
         labelspacing=0.4,
         handletextpad=1.5,
@@ -775,13 +775,14 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "plot_network",
             simpl="",
-            clusters="23",
+            clusters="30",
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
-            sopts="144H",
-            discountrate=0.071,
+            sopts="3H",
+            discountrate=0.076,
             demand="NZ",
+            h2export='50'
         )
 
     n = pypsa.Network(snakemake.input.network)

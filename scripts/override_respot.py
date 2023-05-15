@@ -72,13 +72,13 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "override_respot",
             simpl="",
-            clusters="16",
+            clusters="30",
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
             sopts="3H",
             demand="AP",
-            discountrate=0.071,
+            discountrate=0.097,
         )
         sets_path_to_root("pypsa-earth-sec")
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     m = n.copy()
     if snakemake.config["custom_data"]["renewables"]:
         buses = list(n.buses[n.buses.carrier == "AC"].index)
-        energy_totals = pd.read_csv(snakemake.input.energy_totals, index_col=0)
+        energy_totals = pd.read_csv(snakemake.input.energy_totals, index_col=0, keep_default_na=False, na_values="")
         countries = snakemake.config["countries"]
         if snakemake.config["custom_data"]["renewables"]:
             techs = snakemake.config["custom_data"]["renewables"]
