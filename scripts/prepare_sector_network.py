@@ -425,6 +425,15 @@ def add_biomass(n, costs):
     )
 
     n.madd(
+        "Generator",
+        spatial.gas.biogas,
+        bus=spatial.gas.biogas,
+        p_nom_extendable=True,
+        carrier="biogas",
+        marginal_cost=costs.at["biogas", "fuel"],
+    )
+
+    n.madd(
         "Bus",
         spatial.biomass.nodes,
         location=spatial.biomass.locations,
@@ -669,7 +678,7 @@ def add_co2(n, costs):
         "Store",
         spatial.co2.nodes,
         e_nom_extendable=True,
-        e_nom_max=np.inf,
+        e_nom_max=(snakemake.config["sector"]["co2_sequestration_potential"] * 1e6)/len(nodes),
         capital_cost=options["co2_sequestration_cost"],
         carrier="co2 stored",
         bus=spatial.co2.nodes,
@@ -1046,9 +1055,11 @@ def add_industry(n, costs):
         spatial.biomass.industry,
         bus0=spatial.biomass.nodes,
         bus1=spatial.biomass.industry,
+        bus2="co2 atmosphere",
         carrier="solid biomass for industry",
         p_nom_extendable=True,
         efficiency=1.0,
+        efficiency2=-costs.at["solid biomass", "CO2 intensity"]
     )
 
     n.madd(
@@ -1062,9 +1073,9 @@ def add_industry(n, costs):
         p_nom_extendable=True,
         capital_cost=costs.at["cement capture", "fixed"]
         * costs.at["solid biomass", "CO2 intensity"],
-        efficiency=0.9,  # TODO: make config option
+        efficiency=1.0,  # TODO: make config option
         efficiency2=-costs.at["solid biomass", "CO2 intensity"]
-        * costs.at["cement capture", "capture_rate"],
+        * (1 - costs.at["cement capture", "capture_rate"]),
         efficiency3=costs.at["solid biomass", "CO2 intensity"]
         * costs.at["cement capture", "capture_rate"],
         lifetime=costs.at["cement capture", "lifetime"],
@@ -2141,13 +2152,13 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "prepare_sector_network",
             simpl="",
-            clusters="10",
+            clusters="30",
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
-            sopts="144H",
-            discountrate="0.071",
-            demand="DF",
+            sopts="24H",
+            discountrate="0.082",
+            demand="AP",
         )
 
     # Load population layout

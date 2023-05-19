@@ -29,18 +29,18 @@ import pypsa
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from helpers import mock_snakemake
-
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
         snakemake = mock_snakemake(
             "prepare_db",
             simpl="",
-            clusters="244",
+            clusters="30",
             ll="c1.0",
-            opts="Co2L1",
+            opts="Co2L",
             planning_horizons="2030",
-            sopts="720H",
-            discountrate=0.071,
+            sopts="144H",
+            discountrate=0.082,
             demand="AP",
-            h2export="0",
+            h2export="200",
         )
 
     n0 = pypsa.Network(snakemake.input.network)
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
 # %%
 # def summary_h2(n, t):
-t = 720
+t = 144
 
 n = n0.copy()
 # n = pypsa.Network("../results/MA_REALISTIC_2030/postnetworks/elec_s_195_ec_lc1.0_Co2L_3H_2030_0.071_AP_428export.nc")
@@ -113,7 +113,7 @@ def populate_db(tech_col, carrier, flow, tech, ngv=False):  # TODO Add scenario 
         elif ngv == False:
             dbf["value"] = abs(dbf["value"])
 
-    db = db.append(dbf)
+        db = pd.concat([db, dbf])
 
 
 def add_gen(tech, carrier, reg=False):
@@ -230,7 +230,7 @@ def net_flow(co_code, tech, carrier, flow):
     dbf["flow"] = flow
     dbf["tech"] = tech
     dbf["value"] = (inflow - outflow).reset_index(drop=True)  # /10**6
-    db = db.append(dbf)
+    db = pd.concat([db,dbf])
     return dbf
 
 
@@ -430,6 +430,7 @@ h2_flows = pd.DataFrame(index=pipelines_h2.index.copy(), columns=["node_id", "fl
 
 db.reset_index(drop=True, inplace=True)
 # round(db).to_csv('db_fraction.csv')
+db.drop("DateTime", axis=1, inplace = True)
 round(db).to_csv(snakemake.output.db)
 yearly_agg = round(db.groupby([db.node_id, db.carrier, db.flow, db.tech]).sum() / 1e3)
 
@@ -466,8 +467,8 @@ def energy_pie(carrier, node_id, sign):
     agg = agg.groupby("tech").sum().reset_index()
     agg["pct"] = round(agg["value"] / agg.value.sum(), 3)
     if agg.pct.sum() < 1:
-        agg = agg.append(
-            pd.DataFrame([["other", 0, 1 - agg.pct.sum()]], columns=agg.columns)
+        pd.concat([agg,
+            (pd.DataFrame([["other", 0, 1 - agg.pct.sum()]], columns=agg.columns))]
         )
     agg = agg[agg.pct > 0.009]
 
@@ -494,3 +495,4 @@ def energy_pie(carrier, node_id, sign):
         ),
         dpi=100,
     )
+print("end")

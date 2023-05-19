@@ -203,7 +203,136 @@ def H2_export_yearly_constraint(n):
 
     con = define_constraints(n, lhs, ">=", rhs, "H2ExportConstraint", "RESproduction")
 
+def monthly_constraints(n, n_ref):
+    res_techs = [
+        "csp",
+        "rooftop-solar",
+        "solar",
+        "onwind",
+        "onwind2",
+        "offwind",
+        "offwind2",
+        "ror",
+    ]
+    allowed_excess = snakemake.config["policy_config"]["allowed_excess"]
 
+    res_index = n.generators.loc[n.generators.carrier.isin(res_techs)].index
+
+    weightings = pd.DataFrame(
+        np.outer(n.snapshot_weightings["generators"], [1.0] * len(res_index)),
+        index=n.snapshots,
+        columns=res_index,
+    )
+
+    res = linexpr((weightings, get_var(n, "Generator", "p")[res_index])).sum(
+        axis=1
+    )  # single line sum
+    res = res.groupby(res.index.month).sum()
+
+    electrolysis = get_var(n, "Link", "p")[
+        n.links.index[n.links.index.str.contains("H2 Electrolysis")]
+    ]
+    weightings_electrolysis = pd.DataFrame(
+        np.outer(
+            n.snapshot_weightings["generators"], [1.0] * len(electrolysis.columns)
+        ),
+        index=n.snapshots,
+        columns=electrolysis.columns,
+    )
+
+    elec_input = linexpr((-allowed_excess * weightings_electrolysis, electrolysis)).sum(
+        axis=1
+    )
+
+    elec_input = elec_input.groupby(elec_input.index.month).sum()
+
+    if (
+        snakemake.config["policy_config"]["reference_case"]
+        and eval(snakemake.wildcards["h2export"]) != 0
+    ):
+        res_ref = n_ref.generators_t.p[res_index] * weightings
+        res_ref = res_ref.groupby(n_ref.generators_t.p.index.month).sum().sum(axis=1)
+
+        elec_input_ref = (
+            n_ref.links_t.p0.loc[
+                :, n_ref.links_t.p0.columns.str.contains("H2 Electrolysis")
+            ]
+            * weightings_electrolysis
+        )
+        elec_input_ref = (
+            -elec_input_ref.groupby(elec_input_ref.index.month).sum().sum(axis=1)
+        )
+
+        for i in range(len(res.index)):
+            lhs = res.iloc[i] + "\n" + elec_input.iloc[i]
+            rhs = res_ref.iloc[i] + elec_input_ref.iloc[i]
+            con = define_constraints(
+                n, lhs, ">=", rhs, f"RESconstraints_{i}", f"REStarget_{i}"
+            )
+
+    elif eval(snakemake.wildcards["h2export"]) != 0:
+        for i in range(len(res.index)):
+            lhs = res.iloc[i] + "\n" + elec_input.iloc[i]
+
+            con = define_constraints(
+                n, lhs, ">=", 0.0, f"RESconstraints_{i}", f"REStarget_{i}"
+            )
+    else:
+        logger.info("ignoring H2 export constraint as wildcard is set to 0")
+
+def add_emission_limit(n, sns):  # 294
+    co2_atmosphere = n.stores.loc[n.stores.carrier == "co2"].index
+
+    # if co2_stores.empty or ("Store", "e") not in n.variables.index:
+    #     return
+
+    vars_final_co2_stored = get_var(n, "Store", "e").loc[sns[-1], co2_atmosphere]
+    # vars_conv_gens = get_var(n, "Store", "e").loc[sns[-1], co2_atmosphere]
+
+    conv_gens = list(n.carriers[n.carriers.co2_emissions > 0].index)
+    conv_index = n.generators[n.generators.carrier.isin(conv_gens)].index
+    # vars_conv_gens = n.generators_t.p[conv_index]
+
+    n.generators.loc[n.generators.carrier.isin(conv_gens), "emissions"] = 0
+    n.generators.loc[conv_index, "emissions"] = n.generators.loc[
+        conv_index, "carrier"
+    ].apply(lambda x: n.carriers.loc[x].co2_emissions)
+    n.generators.emissions = n.generators.emissions.fillna(0)
+
+    weightings = pd.DataFrame(
+        np.outer(n.snapshot_weightings["generators"], [1.0] * len(conv_index)),
+        index=n.snapshots,
+        columns=conv_index,
+    )
+
+    emission_factors = pd.DataFrame(
+        np.outer(
+            [1.0] * len(n.snapshot_weightings["generators"]),
+            n.generators.loc[conv_index, "emissions"],
+        ),
+        index=n.snapshots,
+        columns=conv_index,
+    )
+
+    vars_conv_gens = get_var(n, "Generator", "p")
+
+    lhs_store = linexpr((1, vars_final_co2_stored)).sum()
+    lhs_gens = join_exprs(
+        linexpr(
+            (emission_factors * weightings, get_var(n, "Generator", "p")[conv_index])
+        )
+    )
+    lhs = lhs_store + lhs_gens
+
+    rhs = (
+        n.config["sector"].get("co2_emission_limit", 50) * 1e6
+    )  # TODO change 200 limit (Europe)
+
+    name = "co2_emission_limit"
+    define_constraints(
+        n, lhs, "<=", rhs, "GlobalConstraint", "mu", axes=pd.Index([name]), spec=name
+    )
+        
 def add_chp_constraints(n):
     electric_bool = (
         n.links.index.str.contains("urban central")
@@ -301,7 +430,7 @@ def extra_functionality(n, snapshots):
         if snakemake.config["H2_network_limit"]:
             add_h2_network_cap(n, snakemake.config["H2_network_limit"])
     add_co2_sequestration_limit(n, snapshots)
-
+    add_emission_limit(n, snapshots)
 
 def solve_network(n, config, opts="", **kwargs):
     solver_options = config["solving"]["solver"].copy()
