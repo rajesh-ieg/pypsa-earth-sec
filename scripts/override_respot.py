@@ -16,7 +16,7 @@ def override_values(tech, year, dr):
     custom_res_t = pd.read_csv(
         snakemake.input["custom_res_pot_{0}_{1}_{2}".format(tech, year, dr)],
         index_col=0,
-        parse_dates=True, keep_default_na=False, na_values=''
+        parse_dates=True, keep_default_na=False, na_values='' 
     ).filter(buses, axis=1)
 
     custom_res = (
