@@ -14,8 +14,10 @@ import pandas as pd
 import pypsa
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, Ellipse
-
-
+import geopandas as gpd
+import matplotlib.lines as mlines
+plt.rcParams["figure.dpi"] = 300
+plt.rcParams["savefig.format"] = 'png'
 def assign_location(n):
     for c in n.iterate_components(n.one_port_components | n.branch_components):
         ifind = pd.Series(c.df.index.str.find(" ", start=4), c.df.index)
@@ -179,11 +181,11 @@ def plot_h2_infra(network):
     # assign_location(n)
 
     bus_size_factor = 1e5
-    linewidth_factor = 1e3
+    linewidth_factor = 0.8e3
     # MW below which not drawn
-    line_lower_threshold = 1e2
-    bus_color = "m"
-    link_color = "c"
+    line_lower_threshold = 1e1
+    bus_color = "#a5f0c5"
+    link_color = "green"
 
     n.links.loc[:, "p_nom_opt"] = n.links.loc[:, "p_nom_opt"]
     # n.links.loc[n.links.carrier == "H2 Electrolysis"].p_nom_opt
@@ -223,8 +225,9 @@ def plot_h2_infra(network):
         link_colors=link_color,
         link_widths=link_widths,
         branch_components=["Link"],
-        color_geomap={"ocean": "lightblue", "land": "oldlace"},
+        color_geomap=True,
         ax=ax,
+        bus_alpha=0.8,
         # boundaries=(-20, 0, 25, 40),
     )
 
@@ -236,9 +239,9 @@ def plot_h2_infra(network):
         handles,
         labels,
         loc="upper left",
-        bbox_to_anchor=(0.01, 1.01),
+        bbox_to_anchor=(0.7, 0.8),
         labelspacing=0.8,
-        framealpha=1.0,
+        frameon=False,
         title="Electrolyzer capacity",
         handler_map=make_handler_map_to_scale_circles_as_in(ax),
     )
@@ -247,7 +250,7 @@ def plot_h2_infra(network):
     handles = []
     labels = []
 
-    for s in (5, 1):
+    for s in (2, 1, 0.1):
         handles.append(
             plt.Line2D([0], [0], color=link_color, linewidth=s * 1e3 / linewidth_factor)
         )
@@ -256,19 +259,24 @@ def plot_h2_infra(network):
         handles,
         labels,
         loc="upper left",
-        bbox_to_anchor=(0.32, 1.01),
-        framealpha=1,
+        bbox_to_anchor=(0.6, 0.5),
+        frameon=False,
         labelspacing=0.8,
         handletextpad=1.5,
         title="H2 pipeline capacity",
     )
     ax.add_artist(l1_1)
-
+    #plot_port_ind(ax)
+    #plot_ind(ax)
     # fig.savefig(snakemake.output.hydrogen, bbox_inches='tight', transparent=True,
     fig.savefig(
-        snakemake.output.map.replace("-costs-all", "-h2_network"), bbox_inches="tight"
+        snakemake.output.map.replace("-costs-all", "-h2_network"), bbox_inches="tight", format="png"
     )
-
+    # fig.savefig(
+    #         snakemake.output.map.replace("-h2_network_{2030}_{0.076}_{NZ}_{0}export.pdf".format(planning_horizon), "-h2_network_2030_0.076_NZ_0export.png"),
+    #         transparent=True,
+    #         bbox_inches="tight",
+    #     )
 
 def plot_smr(network):
     n = network.copy()
@@ -279,7 +287,7 @@ def plot_smr(network):
     linewidth_factor = 1e3
     # MW below which not drawn
     line_lower_threshold = 1e2
-    bus_color = "m"
+    bus_color = "blue"
     link_color = "c"
 
     n.links.loc[:, "p_nom_opt"] = n.links.loc[:, "p_nom_opt"]
@@ -389,7 +397,7 @@ def plot_transmission_topology(network):
     n.plot(
         branch_components=["Link", "Line"],
         # boundaries=(-20, 0, 25, 40),
-        color_geomap={"ocean": "lightblue", "land": "oldlace"},
+        color_geomap=True,
         line_colors="darkblue",
         link_colors="turquoise",
         link_widths=5,
@@ -430,13 +438,13 @@ def plot_transmission_topology(network):
         lw=4,
     )
 
-    plt.legend(handles=[Elec_Circle, elec_Line, H2_Line], loc="upper left")
+    plt.legend(handles=[Elec_Circle, elec_Line, H2_Line], loc="lower left")
 
     fig.savefig(
         snakemake.output.map.replace("-costs-all", "-full_topology"),
         bbox_inches="tight",
     )
-
+    
 
 preferred_order = pd.Index(
     [
@@ -558,7 +566,147 @@ def rename_techs_tyndp(tech):
         return "offshore wind"
     else:
         return tech
+    
+def plot_port(ax):
+    df = pd.read_csv("/home/raj08555/dev/sandbox-cs/pypsa-earth-sec/data/export_ports.csv", keep_default_na=False,
+        na_values=[""])
+    geometry = gpd.points_from_xy(df.x, df.y)
+    geo_df = gpd.GeoDataFrame(df, #specify our data
+                          crs='epsg:4326', #specify our coordinate reference system
+                          geometry=geometry) #specify the geometry list we created      
+    geo_df = geo_df.loc[geo_df["country"]=="NA"]
 
+    msize = geo_df['fraction'].astype(float)*1000
+
+    geo_df.to_crs(epsg=4326).plot(
+                                ax=ax,
+                                column='name',
+                                alpha=0.8,
+                                zorder=5,
+                                markersize=msize, legend=True,
+                                legend_kwds={'loc': "lower right", "frameon": "False","title": "Existing project proposals"})
+    # need to add existing legend back
+    leg1 = ax.get_legend()
+
+    # some bins to indicate size in legend
+    _, bins = pd.cut(msize, bins=2, precision=2, retbins=True)
+    #print(bins, markersize)
+    # create second legend
+    ax.add_artist(
+        ax.legend(
+            handles=[
+                mlines.Line2D(
+                    [],
+                    [],
+                    color="black",
+                    lw=0,
+                    marker="o",
+                    markersize=np.sqrt(b*10),
+                    label=str(float(b)),
+                )
+                for i, b in enumerate(bins)
+            ],
+            loc="upper right",
+            title= "Export",
+             
+        )
+    )
+    # restore original legend
+    ax.add_artist(leg1)
+
+def plot_ind(ax):
+    df = pd.read_csv("/home/raj08555/dev/sandbox-cs/pypsa-earth-sec/resources/custom_data/industrial_database.csv", keep_default_na=False,
+        na_values=[""])
+    geometry = gpd.points_from_xy(df.y, df.x)
+    geo_df = gpd.GeoDataFrame(df, #specify our data
+                          crs='epsg:4326', #specify our coordinate reference system
+                          geometry=geometry) #specify the geometry list we created      
+    #geo_df = geo_df.loc[geo_df["capacity"]=="NA"]
+
+    msize = geo_df['capacity'].astype(float)
+
+    geo_df.to_crs(epsg=4326).plot(
+                                ax=ax,
+                                column='technology',
+                                alpha=0.8,
+                                zorder=5,
+                                cmap="tab20b",
+                                markersize=msize, legend=True,
+                                legend_kwds={'loc': "lower right","title": "Industries (by output size)"})
+    # need to add existing legend back
+    leg1 = ax.get_legend()
+
+    # some bins to indicate size in legend
+    # _, bins = pd.cut(msize, bins=2, precision=2, retbins=True)
+    # #print(bins, markersize)
+    # # create second legend
+    # ax.add_artist(
+    #     ax.legend(
+    #         handles=[
+    #             mlines.Line2D(
+    #                 [],
+    #                 [],
+    #                 color="black",
+    #                 lw=0,
+    #                 marker="o",
+    #                 markersize=np.sqrt(b/1000),
+    #                 label=str(float(b)),
+    #             )
+    #             for i, b in enumerate(bins)
+    #         ],
+    #         loc="upper right",
+    #         title= "Export",
+             
+    #     )
+    # )
+    # restore original legend
+    ax.add_artist(leg1)
+
+def plot_existing_proj(ax):
+    df = pd.read_csv("/home/raj08555/dev/sandbox-cs/pypsa-earth-sec/resources/custom_data/Existing_projects_na.csv", keep_default_na=False,
+        na_values=[""])
+    geometry = gpd.points_from_xy(df.y, df.x)
+    geo_df = gpd.GeoDataFrame(df, #specify our data
+                          crs='epsg:4326', #specify our coordinate reference system
+                          geometry=geometry) #specify the geometry list we created      
+    msize = geo_df['Project Value'].astype(float)*1e-6
+
+    geo_df.to_crs(epsg=4326).plot(
+                                ax=ax,
+                                column='Project',
+                                alpha=0.5,
+                                zorder=4,
+                                cmap="brg",
+                                markersize=msize, legend=True,
+                                legend_kwds={'loc': "lower right", "frameon": "False","title": "Existing project proposals"})
+    # need to add existing legend back
+    leg1 = ax.get_legend()
+
+    # some bins to indicate size in legend
+    _, bins = pd.cut(msize, bins=2, precision=2, retbins=True)
+    #print(bins, markersize)
+    # create second legend
+    # ax.add_artist(
+    #     ax.legend(
+    #         handles=[
+    #             mlines.Line2D(
+    #                 [],
+    #                 [],
+    #                 color="green",
+    #                 lw=0,
+    #                 marker="o",
+    #                 markersize=np.sqrt(b/10),
+    #                 label=str(float(b/1000)),
+    #             )
+    #             for i, b in enumerate(bins)
+    #         ],
+    #         loc="upper right",
+    #         title= "Project value (in million euros)",
+             
+    #     )
+    # )
+    # restore original legend
+    ax.add_artist(leg1)
 
 def plot_map(
     network,
@@ -567,7 +715,7 @@ def plot_map(
         "generators",
         "stores",
     ],  # "storage_units"], #TODO uncomment after adding storage units
-    bus_size_factor=2e10,
+    bus_size_factor=1.5e10,
     transmission=False,
     geometry=True,
 ):
@@ -662,8 +810,8 @@ def plot_map(
     link_widths.loc[link_widths > line_upper_threshold] = line_upper_threshold
 
     fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
-    fig.set_size_inches(10.5, 9)
-
+    fig.set_size_inches(13, 9)
+    
     n.plot(
         bus_sizes=costs / bus_size_factor,
         bus_colors=tech_colors,
@@ -674,20 +822,23 @@ def plot_map(
         ax=ax,
         # boundaries=(-20, 0, 25, 40),
         geomap="10m",
-        color_geomap={"ocean": "lightblue", "land": "oldlace"},
+        color_geomap=True
     )
 
+    #plot_existing_proj(ax)
+    
     handles = make_legend_circles_for(
-        [5e9, 1e9], scale=bus_size_factor, facecolor="gray"
+        [5e9, 2e9, 0.1e9], scale=bus_size_factor, facecolor="gray"
     )
-    labels = ["{} b€/a".format(s) for s in (5, 1)]
+    labels = ["{} b€/a".format(s) for s in (5, 2, 0.1)]
     l2 = ax.legend(
         handles,
         labels,
         loc="upper left",
-        bbox_to_anchor=(0.33, 1.005),
-        labelspacing=1.0,
-        framealpha=1.0,
+        bbox_to_anchor=(0.7, 0.8),
+        labelspacing=2.0,
+        handletextpad=1.5,
+        frameon=False,
         title="System cost",
         fontsize=12,
         handler_map=make_handler_map_to_scale_circles_as_in(ax),
@@ -705,8 +856,8 @@ def plot_map(
         handles,
         labels,
         loc="upper left",
-        bbox_to_anchor=(0.001, 1.002),
-        framealpha=1,
+        bbox_to_anchor= (0.6, 0.5),
+        frameon=False,
         labelspacing=0.4,
         handletextpad=1.5,
         fontsize=10,
@@ -775,13 +926,14 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "plot_network",
             simpl="",
-            clusters="23",
+            clusters="30",
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
-            sopts="144H",
-            discountrate=0.071,
+            sopts="3H",
+            discountrate=0.076,
             demand="NZ",
+            h2export=200#,"0",1","5","50","100", "200"] 
         )
 
     n = pypsa.Network(snakemake.input.network)

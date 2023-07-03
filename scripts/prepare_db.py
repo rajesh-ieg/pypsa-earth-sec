@@ -37,7 +37,7 @@ if __name__ == "__main__":
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
-            sopts="144H",
+            sopts="24H",
             discountrate=0.082,
             demand="AP",
             h2export="200",
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
 # %%
 # def summary_h2(n, t):
-t = 144
+t = 24
 
 n = n0.copy()
 # n = pypsa.Network("../results/MA_REALISTIC_2030/postnetworks/elec_s_195_ec_lc1.0_Co2L_3H_2030_0.071_AP_428export.nc")
@@ -467,9 +467,8 @@ def energy_pie(carrier, node_id, sign):
     agg = agg.groupby("tech").sum().reset_index()
     agg["pct"] = round(agg["value"] / agg.value.sum(), 3)
     if agg.pct.sum() < 1:
-        pd.concat([agg,
-            (pd.DataFrame([["other", 0, 1 - agg.pct.sum()]], columns=agg.columns))]
-        )
+        other_agg = pd.DataFrame([["other", "other", "other","other", 0, 1 - agg.pct.sum()]], columns=agg.columns)
+        pd.concat([agg, other_agg])
     agg = agg[agg.pct > 0.009]
 
     fig1, ax1 = plt.subplots()  # figsize=(6, 4))
@@ -495,4 +494,5 @@ def energy_pie(carrier, node_id, sign):
         ),
         dpi=100,
     )
-print("end")
+energy_pie("co2", "all", -1)
+energy_pie("co2", "all", 1)

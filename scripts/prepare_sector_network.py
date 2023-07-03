@@ -737,10 +737,10 @@ def add_aviation(n, cost):
 
     airports = pd.concat([airports, ind])
 
-    airports = airports[~airports.index.duplicated(keep="first")]
+    #airports = airports[~airports.index.duplicated(keep="first")]
 
+    airports = airports.groupby(airports.index).sum()
     airports = airports.fillna(0)
-
     n.madd(
         "Load",
         nodes,
@@ -932,8 +932,9 @@ def add_shipping(n, costs):
 
     ports = pd.concat([ports, ind])
 
-    ports = ports[~ports.index.duplicated(keep="first")]
+    #ports = ports[~ports.index.duplicated(keep="first")]
 
+    ports = ports.groupby(ports.index).sum()
     ports = ports.fillna(0)
 
     if options["shipping_hydrogen_liquefaction"]:
@@ -1055,31 +1056,29 @@ def add_industry(n, costs):
         spatial.biomass.industry,
         bus0=spatial.biomass.nodes,
         bus1=spatial.biomass.industry,
-        bus2="co2 atmosphere",
         carrier="solid biomass for industry",
         p_nom_extendable=True,
-        efficiency=1.0,
-        efficiency2=-costs.at["solid biomass", "CO2 intensity"]
+        efficiency=1.0
     )
 
-    n.madd(
-        "Link",
-        spatial.biomass.industry_cc,
-        bus0=spatial.biomass.nodes,
-        bus1=spatial.biomass.industry,
-        bus2="co2 atmosphere",
-        bus3=spatial.co2.nodes,
-        carrier="solid biomass for industry CC",
-        p_nom_extendable=True,
-        capital_cost=costs.at["cement capture", "fixed"]
-        * costs.at["solid biomass", "CO2 intensity"],
-        efficiency=1.0,  # TODO: make config option
-        efficiency2=-costs.at["solid biomass", "CO2 intensity"]
-        * (1 - costs.at["cement capture", "capture_rate"]),
-        efficiency3=costs.at["solid biomass", "CO2 intensity"]
-        * costs.at["cement capture", "capture_rate"],
-        lifetime=costs.at["cement capture", "lifetime"],
-    )
+    # n.madd(
+    #     "Link",
+    #     spatial.biomass.industry_cc,
+    #     bus0=spatial.biomass.nodes,
+    #     bus1=spatial.biomass.industry,
+    #     bus2="co2 atmosphere",
+    #     bus3=spatial.co2.nodes,
+    #     carrier="solid biomass for industry CC",
+    #     p_nom_extendable=True,
+    #     capital_cost=costs.at["cement capture", "fixed"]
+    #     * costs.at["solid biomass", "CO2 intensity"],
+    #     efficiency=1.0,  # TODO: make config option
+    #     efficiency2=-costs.at["solid biomass", "CO2 intensity"]
+    #     * (1 - costs.at["cement capture", "capture_rate"]),
+    #     efficiency3=costs.at["solid biomass", "CO2 intensity"]
+    #     * costs.at["cement capture", "capture_rate"],
+    #     lifetime=costs.at["cement capture", "lifetime"],
+    # )
 
     # CARRIER = FOSSIL GAS
 
@@ -1129,26 +1128,26 @@ def add_industry(n, costs):
         efficiency2=costs.at["gas", "CO2 intensity"],
     )
 
-    n.madd(
-        "Link",
-        spatial.gas.industry_cc,
-        # suffix=" gas for industry CC",
-        # bus0="Africa gas",
-        bus0=spatial.gas.nodes,
-        bus1=spatial.gas.industry,
-        bus2="co2 atmosphere",
-        bus3=spatial.co2.nodes,
-        carrier="gas for industry CC",
-        p_nom_extendable=True,
-        capital_cost=costs.at["cement capture", "fixed"]
-        * costs.at["gas", "CO2 intensity"],
-        efficiency=0.9,
-        efficiency2=costs.at["gas", "CO2 intensity"]
-        * (1 - costs.at["cement capture", "capture_rate"]),
-        efficiency3=costs.at["gas", "CO2 intensity"]
-        * costs.at["cement capture", "capture_rate"],
-        lifetime=costs.at["cement capture", "lifetime"],
-    )
+    # n.madd(
+    #     "Link",
+    #     spatial.gas.industry_cc,
+    #     # suffix=" gas for industry CC",
+    #     # bus0="Africa gas",
+    #     bus0=spatial.gas.nodes,
+    #     bus1=spatial.gas.industry,
+    #     bus2="co2 atmosphere",
+    #     bus3=spatial.co2.nodes,
+    #     carrier="gas for industry CC",
+    #     p_nom_extendable=True,
+    #     capital_cost=costs.at["cement capture", "fixed"]
+    #     * costs.at["gas", "CO2 intensity"],
+    #     efficiency=0.9,
+    #     efficiency2=costs.at["gas", "CO2 intensity"]
+    #     * (1 - costs.at["cement capture", "capture_rate"]),
+    #     efficiency3=costs.at["gas", "CO2 intensity"]
+    #     * costs.at["cement capture", "capture_rate"],
+    #     lifetime=costs.at["cement capture", "lifetime"],
+    # )
 
     #################################################### CARRIER = HYDROGEN
 
@@ -1277,20 +1276,20 @@ def add_industry(n, costs):
     )
 
     # assume enough local waste heat for CC
-    n.madd(
-        "Link",
-        spatial.co2.locations,
-        suffix=" process emissions CC",
-        bus0="process emissions",
-        bus1="co2 atmosphere",
-        bus2=spatial.co2.nodes,
-        carrier="process emissions CC",
-        p_nom_extendable=True,
-        capital_cost=costs.at["cement capture", "fixed"],
-        efficiency=1 - costs.at["cement capture", "capture_rate"],
-        efficiency2=costs.at["cement capture", "capture_rate"],
-        lifetime=costs.at["cement capture", "lifetime"],
-    )
+    # n.madd(
+    #     "Link",
+    #     spatial.co2.locations,
+    #     suffix=" process emissions CC",
+    #     bus0="process emissions",
+    #     bus1="co2 atmosphere",
+    #     bus2=spatial.co2.nodes,
+    #     carrier="process emissions CC",
+    #     p_nom_extendable=True,
+    #     capital_cost=costs.at["cement capture", "fixed"],
+    #     efficiency=1 - costs.at["cement capture", "capture_rate"],
+    #     efficiency2=costs.at["cement capture", "capture_rate"],
+    #     lifetime=costs.at["cement capture", "lifetime"],
+    # )
 
 
 def get(item, investment_year=None):
@@ -1917,8 +1916,9 @@ def add_agriculture(n, costs):
         p_set=nodal_energy_totals.loc[nodes, "agriculture oil"] * 1e6 / 8760,
     )
     co2 = (
-        nodal_energy_totals.loc[nodes, "agriculture oil"]
+        nodal_energy_totals.loc[nodes, "agriculture oil"].sum()
         * 1e6
+        /8760
         * costs.at["oil", "CO2 intensity"]
     )
 
@@ -1960,7 +1960,7 @@ def add_residential(n, costs):
             .columns
         )
 
-        heat_shape = (
+        heat_shape = ( # heat_demand["residential space"] / heat_demand["residential space"].sum().sum() 
             n.loads_t.p_set.loc[:, heat_ind]
             / n.loads_t.p_set.loc[:, heat_ind].sum().sum()
         )
@@ -2152,17 +2152,17 @@ if __name__ == "__main__":
         snakemake = mock_snakemake(
             "prepare_sector_network",
             simpl="",
-            clusters="30",
+            clusters="32",
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
-            sopts="24H",
-            discountrate="0.082",
+            sopts="3H",
+            discountrate="0.097",
             demand="AP",
         )
 
     # Load population layout
-    pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0)
+    pop_layout = pd.read_csv(snakemake.input.clustered_pop_layout, index_col=0, keep_default_na=False, na_values=[''])
 
     # Load all sector wildcards
     options = snakemake.config["sector"]
@@ -2233,7 +2233,7 @@ if __name__ == "__main__":
     # Load data required for the heat sector
     heat_demand = pd.read_csv(
         snakemake.input.heat_demand, index_col=0, header=[0, 1], parse_dates=True
-    )
+    ).fillna(0)
     # Ground-sourced heatpump coefficient of performance
     gshp_cop = pd.read_csv(
         snakemake.input.gshp_cop, index_col=0, parse_dates=True

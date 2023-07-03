@@ -19,7 +19,7 @@ scenario:
   simpl: ['']
   ll: ['1.0']
   clusters: [30]
-  opts: [Co2L-168H]
+  opts: [Co2L-3H]
 
 countries: ["NA"]
 # Can be replaced by country ["NG", "BJ"], continent ["Africa"] or user-specific region, see more at https://pypsa-earth.readthedocs.io/en/latest/configuration.html#top-level-configuration
@@ -116,8 +116,8 @@ load_options:
 
 electricity:
   voltages: [220., 300., 380.]
-  co2limit: 4.0e+3  # European default, 0.05 * 3.1e9*0.5, needs to be adjusted for Africa
-  co2base: 1.487e+8  # European default, adjustment to Africa necessary
+  co2limit: 4.0e+100  # European default, 0.05 * 3.1e9*0.5, needs to be adjusted for Africa
+  co2base: 1.487e+100  # European default, adjustment to Africa necessary
   agg_p_nom_limits: data/agg_p_nom_minmax.csv
   hvdc_as_lines: true # should HVDC lines be modeled as `Line` or as `Link` component?
 
@@ -309,7 +309,7 @@ costs:
     investment: 0
     lifetime: 25
     CO2 intensity: 0
-    discount rate: 0.07
+    discount rate: 0.076
   marginal_cost: # EUR/MWh
     solar: 0.01
     onwind: 0.015

@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # Transfromation key to map the material demand to the corresponding carrier demand
     industry_sector_ratios = pd.read_csv(
         snakemake.input.industry_sector_ratios, index_col=0
-    )
+    ).fillna(0)
 
     if snakemake.config["custom_data"]["industry_demand"]:
         industry_sector_ratios.drop(

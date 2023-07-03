@@ -140,7 +140,7 @@ def calculate_costs(n, label, costs):
     for c in n.iterate_components(
         n.branch_components | n.controllable_one_port_components ^ {"Load"}
     ):
-        capital_costs = c.df.capital_cost * c.df[opt_name.get(c.name, "p") + "_nom_opt"]
+        capital_costs = c.df.capital_cost * (c.df[opt_name.get(c.name, "p") + "_nom_opt"] - c.df[opt_name.get(c.name, "p") + "_nom"])
         capital_costs_grouped = capital_costs.groupby(c.df.carrier).sum()
 
         capital_costs_grouped = pd.concat([capital_costs_grouped], keys=["capital"])
@@ -678,10 +678,10 @@ def to_csv(df):
 
 if __name__ == "__main__":
     if "snakemake" not in globals():
-        # os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        #os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
         from helpers import mock_snakemake
-
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
         snakemake = mock_snakemake("make_summary")
 
     networks_dict = {
@@ -694,7 +694,8 @@ if __name__ == "__main__":
             discountrate,
             demand,
             export,
-        ): snakemake.config["results_dir"]
+        ): snakemake.config["prev"]+
+         snakemake.config["results_dir"]
         + snakemake.config["run"]
         + f"/postnetworks/elec_s{simpl}_{cluster}_ec_l{ll}_{opt}_{sopt}_{planning_horizon}_{discountrate}_{demand}_{export}export.nc"  # snakemake.config['results_dir'] + snakemake.config['run'] + f'/postnetworks/elec_s{simpl}_{cluster}_lv{lv}_{opt}_{sector_opt}_{planning_horizon}.nc' \
         for simpl in snakemake.config["scenario"]["simpl"]

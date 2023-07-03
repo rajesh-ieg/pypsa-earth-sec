@@ -30,10 +30,17 @@ def override_values(tech, year, dr):
 
     custom_res["Generator"] = custom_res["Generator"].apply(lambda x: x + " " + tech)
     custom_res = custom_res.set_index("Generator")
-
+    to_drop = n.generators[n.generators.carrier ==tech]
+    
     if tech.replace("-", " ") in n.generators.carrier.unique():
-        to_drop = n.generators[n.generators.carrier == tech].index
-        n.mremove("Generator", to_drop)
+        #to_drop = n.generators[n.generators.carrier ==tech]
+        n.mremove("Generator", to_drop.index)
+    if tech == "solar":
+        to_drop= to_drop._append(pd.Series(0, index=to_drop.columns, name="NAM13_AC solar")).sort_index()
+        
+    elif tech == "onwind":
+        to_drop= to_drop._append(pd.Series(0, index=to_drop.columns, name="NAM13_AC onwind"))  
+        to_drop= to_drop._append(pd.Series(0, index=to_drop.columns, name="NAM21_AC onwind")).sort_index()
 
     if snakemake.wildcards["planning_horizons"] == 2050:
         directory = "results/" + snakemake.config.run.replace("2050", "2030")
@@ -45,7 +52,10 @@ def override_values(tech, year, dr):
         existing_res = df.loc[tech]
         existing_res.index = existing_res.index.str.apply(lambda x: x + tech)
     else:
-        existing_res = custom_res["installedcapacity"].values
+        if len(to_drop) > 0:
+            existing_res = to_drop.p_nom_min.values
+        else:
+            existing_res = custom_res["installedcapacity"].values
 
     n.madd(
         "Generator",
@@ -61,6 +71,7 @@ def override_values(tech, year, dr):
         efficiency=1.0,
         p_max_pu=custom_res_t,
         lifetime=custom_res["lifetime"][0],
+        p_nom = existing_res,
         p_nom_min=existing_res,
     )
 
@@ -76,7 +87,7 @@ if __name__ == "__main__":
             ll="c1.0",
             opts="Co2L",
             planning_horizons="2030",
-            sopts="168H",
+            sopts="3H",
             demand="NZ",
             discountrate=0.076,
         )

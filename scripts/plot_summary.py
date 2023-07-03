@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 plt.style.use("ggplot")
-
+plt.rcParams["figure.dpi"] = 300
 # from prepare_sector_network_eur_sec import (
 #     co2_emissions_year,  # Currently not required, only for carbon budget plotting
 # )
@@ -36,9 +36,9 @@ def rename_techs(label):
     rename_if_contains_dict = {
         "water tanks": "hot water storage",
         "retrofitting": "building retrofitting",
-        "H2 Electrolysis": "hydrogen storage",
-        "H2 Fuel Cell": "hydrogen storage",
-        "H2 pipeline": "hydrogen storage",
+        "H2 Electrolysis": "hydrogen electrolysis",
+        "H2 Fuel Cell": "hydrogen fuel cell",
+        "H2 pipeline": "hydrogen pipeline",
         "battery": "battery storage",
         # "CC": "CC"
     }
@@ -172,7 +172,14 @@ def plot_costs():
     ax.legend(
         handles, labels, ncol=1, loc="upper left", bbox_to_anchor=[1, 1], frameon=False
     )
-    plt.xticks(rotation=0)
+    for c in ax.containers:
+
+    # Optional: if the segment is small or 0, customize the labels
+        labels = [v.get_height().round(1) if v.get_height().round(1) > 0 else '' for v in c]
+    
+    # remove the labels parameter if it's not needed for customized labels
+        ax.bar_label(c, labels=labels, label_type='center')
+    plt.xticks(rotation=90)
 
     fig.savefig(snakemake.output.costs, bbox_inches="tight")
 
@@ -235,7 +242,7 @@ def plot_energy():
     ax.legend(
         handles, labels, ncol=1, loc="upper left", bbox_to_anchor=[1, 1], frameon=False
     )
-    plt.xticks(rotation=0)
+    plt.xticks(rotation=90)
 
     fig.savefig(snakemake.output.energy, bbox_inches="tight")
 
@@ -323,7 +330,7 @@ def plot_balances():
             bbox_to_anchor=[1, 1],
             frameon=False,
         )
-        plt.xticks(rotation=0)
+        plt.xticks(rotation=90)
 
         fig.savefig(snakemake.output.balances[:-10] + k + ".pdf", bbox_inches="tight")
 
